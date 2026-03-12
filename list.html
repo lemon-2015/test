@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理后台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#003eb3',
+                        secondary: '#f0f5ff',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Sidebar transition */
+        #sidebar {
+            transition: width 0.3s ease;
+        }
+        .sidebar-collapsed {
+            width: 5rem !important; /* w-20 */
+        }
+        .sidebar-collapsed .nav-text {
+            display: none;
+        }
+        .sidebar-collapsed .logo-text {
+            display: none;
+        }
+        .sidebar-collapsed #toggle-icon {
+            transform: rotate(180deg);
+        }
+        
+        /* Modal Transitions */
+        .modal {
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            opacity: 0;
+            visibility: hidden;
+        }
+        .modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            transition: transform 0.3s ease;
+            transform: scale(0.95);
+        }
+        .modal.active .modal-content {
+            transform: scale(1);
+        }
+
+        /* Tab Styles */
+        .tab-btn.active {
+            border-bottom-color: #003eb3;
+            color: #003eb3;
+            font-weight: 600;
+        }
+        
+        .tab-content {
+            display: none !important;
+        }
+        .tab-content.active {
+            display: flex !important;
+        }
+        /* Special case for basic content which doesn't use flex in HTML but we can make it flex col to match or just block */
+        #content-basic.active {
+            display: block !important;
+        }
+
+        /* Scrollbar styling for modal body */
+        .modal-body-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
+        .modal-body-scroll::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        .modal-body-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        .modal-body-scroll::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans h-screen flex overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="bg-white border-r border-gray-200 w-64 flex flex-col shadow-sm z-20 transition-all duration-300">
+        <!-- Logo -->
+        <div class="h-16 flex items-center justify-center border-b border-gray-200 px-4">
+            <div class="flex items-center space-x-2 w-full justify-center">
+                <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
+                    M
+                </div>
+                <span class="text-lg font-bold text-gray-800 logo-text whitespace-nowrap overflow-hidden">管理后台</span>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="flex-1 overflow-y-auto p-4 space-y-1">
+            <a href="javascript:void(0)" onclick="switchView('personnel')" id="nav-personnel" class="flex items-center px-4 py-3 text-primary bg-blue-50 rounded-lg group transition-colors">
+                <i data-lucide="users" class="w-5 h-5 flex-shrink-0"></i>
+                <span class="ml-3 font-medium nav-text whitespace-nowrap overflow-hidden">康养人员列表</span>
+            </a>
+            <a href="javascript:void(0)" onclick="switchView('room')" id="nav-room" class="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 hover:text-gray-900 rounded-lg group transition-colors">
+                <i data-lucide="home" class="w-5 h-5 flex-shrink-0"></i>
+                <span class="ml-3 font-medium nav-text whitespace-nowrap overflow-hidden">房间管理</span>
+            </a>
+            <a href="#" class="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 hover:text-gray-900 rounded-lg group transition-colors">
+                <i data-lucide="activity" class="w-5 h-5 flex-shrink-0"></i>
+                <span class="ml-3 font-medium nav-text whitespace-nowrap overflow-hidden">健康监测</span>
+            </a>
+            <a href="#" class="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 hover:text-gray-900 rounded-lg group transition-colors">
+                <i data-lucide="clipboard-list" class="w-5 h-5 flex-shrink-0"></i>
+                <span class="ml-3 font-medium nav-text whitespace-nowrap overflow-hidden">照护计划</span>
+            </a>
+        </nav>
+
+        <!-- Toggle Button -->
+        <div class="p-4 border-t border-gray-200">
+            <button id="sidebar-toggle" class="flex items-center w-full px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors justify-center md:justify-start">
+                <i data-lucide="chevrons-left" id="toggle-icon" class="w-5 h-5 flex-shrink-0 transition-transform"></i>
+                <span class="ml-3 font-medium nav-text whitespace-nowrap overflow-hidden">收起侧边栏</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Layout -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        
+        <!-- Top Header -->
+        <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 shadow-sm z-10">
+            <div class="flex items-center">
+                <h1 class="text-xl font-bold text-gray-800" id="page-title">康养人员列表</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button class="p-2 text-gray-500 hover:text-primary hover:bg-blue-50 rounded-full transition-colors relative">
+                    <i data-lucide="bell" class="w-5 h-5"></i>
+                    <span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                </button>
+                <div class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded-lg transition-colors">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-primary text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                        AD
+                    </div>
+                    <span class="text-sm font-medium text-gray-700 hidden md:block">管理员</span>
+                    <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 hidden md:block"></i>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Container -->
+        <main class="flex-1 overflow-hidden bg-gray-50 relative">
+            
+            <!-- View 1: Personnel List -->
+            <div id="view-personnel" class="w-full h-full overflow-y-auto p-6">
+                <div class="max-w-7xl mx-auto space-y-6">
+
+                    <!-- Search Filters -->
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            <!-- Creation Time Range -->
+                            <div class="space-y-1 xl:col-span-2">
+                                <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">创建时间</label>
+                                <div class="flex items-center space-x-2">
+                                    <input type="date" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
+                                    <span class="text-gray-400">-</span>
+                                    <input type="date" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
+                                </div>
+                            </div>
+                            <!-- Name -->
+                            <div class="space-y-1">
+                                <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">姓名</label>
+                                <div class="relative">
+                                    <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"></i>
+                                    <input type="text" placeholder="请输入姓名" class="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
+                                </div>
+                            </div>
+                            <!-- Care Level -->
+                            <div class="space-y-1">
+                                <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">照护等级</label>
+                                <select class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none cursor-pointer">
+                                    <option value="">全部</option>
+                                    <option value="1">一级照护</option>
+                                    <option value="2">二级照护</option>
+                                    <option value="3">三级照护</option>
+                                </select>
+                            </div>
+                            <!-- Health Status -->
+                            <div class="space-y-1">
+                                <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">健康状态</label>
+                                <select class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none cursor-pointer">
+                                    <option value="">全部</option>
+                                    <option value="good">良好</option>
+                                    <option value="fair">一般</option>
+                                    <option value="poor">较差</option>
+                                </select>
+                            </div>
+                            <!-- Insurance Type -->
+                            <div class="space-y-1">
+                                <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">医保类型</label>
+                                <select class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none cursor-pointer">
+                                    <option value="">全部</option>
+                                    <option value="employee">职工医保</option>
+                                    <option value="resident">居民医保</option>
+                                    <option value="none">无医保</option>
+                                </select>
+                            </div>
+                            <!-- Status -->
+                            <div class="space-y-1">
+                                <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">状态</label>
+                                <select class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none cursor-pointer">
+                                    <option value="">全部</option>
+                                    <option value="in">在院</option>
+                                    <option value="out">已退房</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 flex justify-end items-center space-x-3 pt-4 border-t border-gray-50">
+                            <button class="px-4 py-2 bg-white text-gray-600 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-gray-900 transition-all shadow-sm">
+                                重置
+                            </button>
+                            <button class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all shadow-md flex items-center shadow-blue-100">
+                                <i data-lucide="search" class="w-4 h-4 mr-2"></i>
+                                查询
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Action Toolbar -->
+                    <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div class="flex items-center space-x-3 w-full sm:w-auto">
+                            <button onclick="openPersonnelModal()" class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all shadow-md shadow-blue-100 flex items-center">
+                                <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                                新建
+                            </button>
+                            <button class="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-primary hover:border-primary/30 transition-all shadow-sm flex items-center">
+                                <i data-lucide="credit-card" class="w-4 h-4 mr-2"></i>
+                                充值
+                            </button>
+                        </div>
+                        <div class="flex items-center space-x-3 w-full sm:w-auto justify-end">
+                            <button class="px-4 py-2 bg-white text-gray-600 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-gray-900 transition-all shadow-sm flex items-center">
+                                <i data-lucide="upload" class="w-4 h-4 mr-2"></i>
+                                批量导入
+                            </button>
+                            <button class="px-4 py-2 bg-white text-gray-600 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-gray-900 transition-all shadow-sm flex items-center">
+                                <i data-lucide="download" class="w-4 h-4 mr-2"></i>
+                                批量导出
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Data Table -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm">
+                                <thead class="bg-gray-50 text-gray-600 font-medium border-b border-gray-200">
+                                    <tr>
+                                        <th class="px-6 py-4 whitespace-nowrap">ID</th>
+                                        <th class="px-6 py-4 whitespace-nowrap">姓名</th>
+                                        <th class="px-6 py-4 whitespace-nowrap">性别</th>
+                                        <th class="px-6 py-4 whitespace-nowrap">年龄</th>
+                                        <th class="px-6 py-4 whitespace-nowrap">民族</th>
+                                        <th class="px-6 py-4 whitespace-nowrap">照护等级</th>
+                                        <th class="px-6 py-4 whitespace-nowrap">健康状态</th>
+                                        <th class="px-6 py-4 whitespace-nowrap">医保类型</th>
+                                        <th class="px-6 py-4 whitespace-nowrap">慢病标签</th>
+                                        <th class="px-6 py-4 whitespace-nowrap">过敏史</th>
+                                        <th class="px-6 py-4 whitespace-nowrap">创建时间</th>
+                                        <th class="px-6 py-4 whitespace-nowrap">状态</th>
+                                        <th class="px-6 py-4 whitespace-nowrap text-right">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100" id="personnel-table-body">
+                                    <!-- JS will populate this -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Pagination -->
+                        <div class="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <div class="text-sm text-gray-500">
+                                显示 <span class="font-medium text-gray-800">1</span> 到 <span class="font-medium text-gray-800">10</span> 条，共 <span class="font-medium text-gray-800">24</span> 条记录
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button class="p-2 rounded-lg border border-gray-200 bg-white text-gray-400 cursor-not-allowed hover:bg-gray-50 transition-colors" disabled>
+                                    <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                                </button>
+                                <button class="px-3 py-1 rounded-lg border border-primary bg-primary text-white text-sm font-medium shadow-sm">1</button>
+                                <button class="px-3 py-1 rounded-lg border border-gray-200 bg-white text-gray-600 text-sm font-medium hover:bg-gray-50 hover:text-primary hover:border-primary transition-colors">2</button>
+                                <button class="px-3 py-1 rounded-lg border border-gray-200 bg-white text-gray-600 text-sm font-medium hover:bg-gray-50 hover:text-primary hover:border-primary transition-colors">3</button>
+                                <button class="p-2 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-primary hover:border-primary transition-colors">
+                                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- View 2: Room Management -->
+            <div id="view-room" class="w-full h-full p-6 flex gap-6 hidden">
+                
+                <!-- Left Tree Panel -->
+                <div class="w-64 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col hidden md:flex">
+                    <div class="p-4 border-b border-gray-100">
+                        <div class="relative">
+                            <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"></i>
+                            <input type="text" placeholder="请输入院区名称" class="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-4">
+                        <!-- Tree Structure Mock -->
+                        <div class="space-y-1">
+                            <div class="flex items-center px-2 py-1.5 bg-blue-50 text-primary rounded-md text-sm font-medium cursor-pointer">
+                                <i data-lucide="building-2" class="w-4 h-4 mr-2"></i>
+                                <span>阳光康养中心</span>
+                            </div>
+                            <div class="pl-6 space-y-1 mt-1">
+                                <div class="flex items-center px-2 py-1.5 text-gray-600 hover:bg-gray-50 rounded-md text-sm cursor-pointer">
+                                    <i data-lucide="building" class="w-4 h-4 mr-2 text-gray-400"></i>
+                                    <span>A栋 - 综合楼</span>
+                                </div>
+                                <div class="flex items-center px-2 py-1.5 text-gray-600 hover:bg-gray-50 rounded-md text-sm cursor-pointer">
+                                    <i data-lucide="building" class="w-4 h-4 mr-2 text-gray-400"></i>
+                                    <span>B栋 - 康复楼</span>
+                                </div>
+                                <div class="flex items-center px-2 py-1.5 text-gray-600 hover:bg-gray-50 rounded-md text-sm cursor-pointer">
+                                    <i data-lucide="building" class="w-4 h-4 mr-2 text-gray-400"></i>
+                                    <span>C栋 - 疗养楼</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Content Panel -->
+                <div class="flex-1 flex flex-col min-w-0 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    
+                    <!-- Search Filters -->
+                    <div class="p-6 border-b border-gray-100 space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            <div class="flex items-center space-x-3">
+                                <label class="text-sm font-medium text-gray-600 w-20 text-right">名称</label>
+                                <input type="text" placeholder="请输入房间名称" class="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <label class="text-sm font-medium text-gray-600 w-20 text-right">房间类型</label>
+                                <select class="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                    <option value="">请选择楼层类型</option>
+                                    <option value="single">单人间</option>
+                                    <option value="double">双人间</option>
+                                    <option value="triple">三人间</option>
+                                </select>
+                            </div>
+                             <div class="flex items-center space-x-3">
+                                <label class="text-sm font-medium text-gray-600 w-20 text-right">用途</label>
+                                <input type="text" placeholder="请输入房间用途" class="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            </div>
+                             <div class="flex items-center space-x-3">
+                                <label class="text-sm font-medium text-gray-600 w-20 text-right">状态</label>
+                                <select class="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                    <option value="">全部</option>
+                                    <option value="enable">开启</option>
+                                    <option value="disable">停用</option>
+                                </select>
+                            </div>
+                            <!-- Usage Status Filter -->
+                            <div class="flex items-center space-x-3">
+                                <label class="text-sm font-medium text-gray-600 w-20 text-right">使用状态</label>
+                                <select class="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                    <option value="">全部</option>
+                                    <option value="empty">空房</option>
+                                    <option value="occupied">入驻</option>
+                                    <option value="maintenance">维修</option>
+                                    <option value="reserved">预留</option>
+                                </select>
+                            </div>
+                             <!-- Not Full Filter -->
+                            <div class="flex items-center space-x-3">
+                                 <label class="flex items-center cursor-pointer select-none">
+                                    <input type="checkbox" class="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary">
+                                    <span class="ml-2 text-sm text-gray-600">未住满</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-wrap gap-3 pt-2">
+                            <button class="px-4 py-2 bg-white text-gray-600 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-gray-900 transition-all shadow-sm flex items-center">
+                                <i data-lucide="search" class="w-4 h-4 mr-2"></i>
+                                搜索
+                            </button>
+                            <button class="px-4 py-2 bg-white text-gray-600 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-gray-900 transition-all shadow-sm flex items-center">
+                                <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i>
+                                重置
+                            </button>
+                            <div class="w-px h-8 bg-gray-200 mx-1 hidden sm:block"></div>
+                            <button onclick="openRoomModal()" class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all shadow-md shadow-blue-100 flex items-center">
+                                <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                                新增
+                            </button>
+                             <button class="px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg text-sm font-medium hover:bg-red-100 transition-all shadow-sm flex items-center">
+                                <i data-lucide="qr-code" class="w-4 h-4 mr-2"></i>
+                                批量导出二维码
+                            </button>
+                             <button class="px-4 py-2 bg-white text-gray-600 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-gray-900 transition-all shadow-sm flex items-center">
+                                <i data-lucide="upload" class="w-4 h-4 mr-2"></i>
+                                导入
+                            </button>
+                             <button class="px-4 py-2 bg-white text-gray-600 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-gray-900 transition-all shadow-sm flex items-center">
+                                <i data-lucide="download" class="w-4 h-4 mr-2"></i>
+                                导出
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Data Table -->
+                    <div class="flex-1 overflow-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-gray-50 text-gray-600 font-medium sticky top-0 z-10 border-b border-gray-200">
+                                <tr>
+                                    <th class="px-4 py-3 whitespace-nowrap w-10"><input type="checkbox" class="rounded border-gray-300 text-primary focus:ring-primary"></th>
+                                    <th class="px-4 py-3 whitespace-nowrap">房间编码</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">二维码</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">房间名称</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">排序</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">房间高度</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">使用面积 (m²)</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">房间类型</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">床位数</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">入驻人数</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">使用状态</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">用途</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">责任人</th>
+                                    <th class="px-4 py-3 whitespace-nowrap text-right">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100" id="room-table-body">
+                                <!-- JS Populated -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="p-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between text-sm text-gray-500">
+                        <div class="flex items-center space-x-2">
+                            <span>共 0 条</span>
+                            <select class="border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary">
+                                <option>10条/页</option>
+                                <option>20条/页</option>
+                                <option>50条/页</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                             <button class="p-1 rounded border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50" disabled><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                             <button class="px-3 py-1 rounded border border-primary bg-primary text-white">1</button>
+                             <button class="p-1 rounded border border-gray-200 bg-white hover:bg-gray-50"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                             <span class="ml-2">前往</span>
+                             <input type="text" value="1" class="w-10 text-center border border-gray-200 rounded px-1 py-0.5 bg-white">
+                             <span>页</span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Modal for Personnel New/Edit -->
+    <div id="personnel-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div class="modal-content bg-white w-full max-w-4xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden mx-4">
+            
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white">
+                <h2 class="text-lg font-bold text-gray-800" id="modal-title">新建康养人员</h2>
+                <div class="flex items-center space-x-3">
+                    <button onclick="closePersonnelModal()" class="text-gray-500 hover:text-gray-700 p-2 rounded-full hover:bg-gray-100 transition-colors">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body (Scrollable) -->
+            <div class="flex-1 overflow-hidden flex flex-col bg-gray-50">
+                <!-- Tabs -->
+                <div class="bg-white border-b border-gray-200 px-6 flex space-x-6">
+                    <button onclick="switchTab('basic')" id="tab-basic" class="tab-btn active py-3 px-1 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-primary transition-all">
+                        基础数据
+                    </button>
+                    <button onclick="switchTab('device')" id="tab-device" class="tab-btn py-3 px-1 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-primary transition-all">
+                        设备列表
+                    </button>
+                </div>
+
+                <!-- Tab Content: Basic Data -->
+                <div id="content-basic" class="tab-content active flex-1 overflow-y-auto p-6 space-y-6">
+                    <!-- Personal Info -->
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center">
+                            <div class="w-1 h-4 bg-primary rounded-full mr-2"></div>
+                            个人信息
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-1">
+                                <label class="text-sm font-medium text-gray-700">姓名 <span class="text-red-500">*</span></label>
+                                <input type="text" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-sm font-medium text-gray-700">性别</label>
+                                <div class="flex items-center space-x-4 h-[38px]">
+                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="gender" class="text-primary focus:ring-primary"><span>男</span></label>
+                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="gender" class="text-primary focus:ring-primary"><span>女</span></label>
+                                </div>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-sm font-medium text-gray-700">出生年月</label>
+                                <input type="date" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-sm font-medium text-gray-700">民族</label>
+                                <input type="text" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            </div>
+                            <div class="space-y-1 md:col-span-2">
+                                <label class="text-sm font-medium text-gray-700">身份证号 <span class="text-red-500">*</span></label>
+                                <input type="text" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            </div>
+                            <div class="space-y-1 md:col-span-2">
+                                <label class="text-sm font-medium text-gray-700">地址</label>
+                                <input type="text" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Emergency Contacts -->
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wider flex items-center">
+                                <div class="w-1 h-4 bg-primary rounded-full mr-2"></div>
+                                紧急联系人
+                            </h3>
+                            <button onclick="addContactRow()" class="text-xs text-primary font-medium hover:underline flex items-center">
+                                <i data-lucide="plus" class="w-3 h-3 mr-1"></i> 增加行
+                            </button>
+                        </div>
+                        <div class="space-y-3" id="contact-list">
+                            <!-- Dynamic Rows -->
+                        </div>
+                    </div>
+                    <!-- Nursing / Medical Attributes -->
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center">
+                            <div class="w-1 h-4 bg-primary rounded-full mr-2"></div>
+                            养老 / 医疗属性
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-1">
+                                <label class="text-sm font-medium text-gray-700">康养房号</label>
+                                <input type="text" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-sm font-medium text-gray-700">照护等级</label>
+                                <select class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                    <option>请选择</option>
+                                    <option>一级照护</option>
+                                    <option>二级照护</option>
+                                    <option>三级照护</option>
+                                </select>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-sm font-medium text-gray-700">健康状态</label>
+                                <div class="flex gap-2 mt-2">
+                                    <label class="cursor-pointer"><input type="radio" name="health" class="peer sr-only"><span class="px-3 py-1.5 rounded-lg border text-sm peer-checked:bg-green-50 peer-checked:text-green-700 peer-checked:border-green-200 hover:bg-gray-50">良好</span></label>
+                                    <label class="cursor-pointer"><input type="radio" name="health" class="peer sr-only"><span class="px-3 py-1.5 rounded-lg border text-sm peer-checked:bg-yellow-50 peer-checked:text-yellow-700 peer-checked:border-yellow-200 hover:bg-gray-50">一般</span></label>
+                                    <label class="cursor-pointer"><input type="radio" name="health" class="peer sr-only"><span class="px-3 py-1.5 rounded-lg border text-sm peer-checked:bg-red-50 peer-checked:text-red-700 peer-checked:border-red-200 hover:bg-gray-50">较差</span></label>
+                                </div>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-sm font-medium text-gray-700">医保类型</label>
+                                <select class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                    <option>职工医保</option>
+                                    <option>居民医保</option>
+                                    <option>无医保</option>
+                                </select>
+                            </div>
+                            <div class="space-y-1 md:col-span-2">
+                                <label class="text-sm font-medium text-gray-700">慢病标签</label>
+                                <div class="flex flex-wrap gap-2 mt-2">
+                                    <label class="cursor-pointer select-none"><input type="checkbox" class="peer sr-only"><span class="px-3 py-1.5 rounded-lg border text-sm text-gray-600 peer-checked:bg-primary/10 peer-checked:text-primary peer-checked:border-primary/30 hover:bg-gray-50">高血压</span></label>
+                                    <label class="cursor-pointer select-none"><input type="checkbox" class="peer sr-only"><span class="px-3 py-1.5 rounded-lg border text-sm text-gray-600 peer-checked:bg-primary/10 peer-checked:text-primary peer-checked:border-primary/30 hover:bg-gray-50">糖尿病</span></label>
+                                    <label class="cursor-pointer select-none"><input type="checkbox" class="peer sr-only"><span class="px-3 py-1.5 rounded-lg border text-sm text-gray-600 peer-checked:bg-primary/10 peer-checked:text-primary peer-checked:border-primary/30 hover:bg-gray-50">冠心病</span></label>
+                                    <button class="px-3 py-1.5 rounded-lg border border-dashed border-gray-300 text-sm text-gray-500 hover:text-primary hover:border-primary transition-all flex items-center"><i data-lucide="plus" class="w-3 h-3 mr-1"></i> 添加</button>
+                                </div>
+                            </div>
+                            <div class="space-y-1 md:col-span-2">
+                                <label class="text-sm font-medium text-gray-700">过敏史</label>
+                                <textarea rows="2" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"></textarea>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-sm font-medium text-gray-700">状态</label>
+                                <div class="flex items-center space-x-4 mt-2">
+                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="status" class="text-primary focus:ring-primary" checked><span class="text-sm text-gray-700">在院</span></label>
+                                    <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="status" class="text-primary focus:ring-primary"><span class="text-sm text-gray-700">已退房</span></label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab Content: Device List -->
+                <div id="content-device" class="tab-content flex-1 overflow-hidden flex flex-col p-6">
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col h-full overflow-hidden">
+                        <!-- Device Search -->
+                        <div class="p-4 border-b border-gray-100 bg-gray-50/50 flex flex-wrap gap-4 items-end">
+                            <div class="space-y-1 flex-1 min-w-[200px]">
+                                <label class="text-xs text-gray-500">设备名称/编号</label>
+                                <input type="text" placeholder="搜索设备..." class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            </div>
+                            <div class="space-y-1 w-40">
+                                <label class="text-xs text-gray-500">设备系统</label>
+                                <select class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                    <option>全部</option>
+                                    <option>健康监测</option>
+                                    <option>安防监控</option>
+                                </select>
+                            </div>
+                            <div class="space-y-1 w-40">
+                                <label class="text-xs text-gray-500">设备类型</label>
+                                <select class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                    <option>全部</option>
+                                    <option>手环</option>
+                                    <option>床垫</option>
+                                </select>
+                            </div>
+                            <button class="px-4 py-2 bg-white text-primary border border-primary rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors">
+                                搜索
+                            </button>
+                        </div>
+                        
+                        <!-- Device Table -->
+                        <div class="flex-1 overflow-auto">
+                            <table class="w-full text-left text-sm">
+                                <thead class="bg-gray-50 text-gray-600 font-medium sticky top-0 z-10">
+                                    <tr>
+                                        <th class="px-4 py-3 w-10 border-b border-gray-200"><input type="checkbox" class="rounded border-gray-300 text-primary focus:ring-primary"></th>
+                                        <th class="px-4 py-3 border-b border-gray-200">设备编号</th>
+                                        <th class="px-4 py-3 border-b border-gray-200">设备名称</th>
+                                        <th class="px-4 py-3 border-b border-gray-200">类型</th>
+                                        <th class="px-4 py-3 border-b border-gray-200">状态</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-4 py-3"><input type="checkbox" class="rounded border-gray-300 text-primary focus:ring-primary" checked></td>
+                                        <td class="px-4 py-3 font-medium text-gray-900">DEV-001</td>
+                                        <td class="px-4 py-3">智能健康手环 H1</td>
+                                        <td class="px-4 py-3 text-gray-500">穿戴设备</td>
+                                        <td class="px-4 py-3 text-green-600 flex items-center"><span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>在线</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-4 py-3"><input type="checkbox" class="rounded border-gray-300 text-primary focus:ring-primary"></td>
+                                        <td class="px-4 py-3 font-medium text-gray-900">DEV-002</td>
+                                        <td class="px-4 py-3">智能睡眠床垫 M3</td>
+                                        <td class="px-4 py-3 text-gray-500">监测设备</td>
+                                        <td class="px-4 py-3 text-gray-400 flex items-center"><span class="w-2 h-2 bg-gray-300 rounded-full mr-2"></span>离线</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 border-t border-gray-200 bg-white flex justify-end space-x-3">
+                <button onclick="closePersonnelModal()" class="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-all shadow-sm">
+                    关闭
+                </button>
+                <button onclick="closePersonnelModal()" class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all shadow-md shadow-blue-100 flex items-center">
+                    <i data-lucide="save" class="w-4 h-4 mr-2"></i>
+                    保存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Room New/Edit -->
+    <div id="room-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div class="modal-content bg-white w-full max-w-4xl max-h-[90vh] rounded-xl shadow-2xl flex flex-col mx-4 overflow-hidden">
+            
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white">
+                <h2 class="text-lg font-bold text-gray-800" id="modal-title">新增房间</h2>
+                <div class="flex items-center space-x-2">
+                    <button class="p-1.5 hover:bg-gray-100 rounded text-gray-500"><i data-lucide="maximize" class="w-4 h-4"></i></button>
+                    <button onclick="closeRoomModal()" class="p-1.5 hover:bg-gray-100 rounded text-gray-500"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="flex-1 overflow-y-auto p-6 modal-body-scroll">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                    
+                    <!-- Department -->
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-gray-600">所属部门</label>
+                        <select class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <option>请选择归属部门</option>
+                            <option>康复部</option>
+                            <option>后勤部</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Floor -->
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-gray-600">所属楼层 <span class="text-red-500">*</span></label>
+                        <select class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <option>请选择上级楼宇</option>
+                            <option>A栋 - 1F</option>
+                            <option>A栋 - 2F</option>
+                        </select>
+                    </div>
+
+                    <!-- Room Code -->
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-gray-600">房间编码 <span class="text-red-500">*</span></label>
+                        <input type="text" placeholder="请输入房间编码" class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                    </div>
+
+                    <!-- Room Name -->
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-gray-600">房间名称 <span class="text-red-500">*</span></label>
+                        <input type="text" placeholder="请输入房间名称" class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                    </div>
+
+                    <!-- Space Type -->
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-gray-600">空间类型 <span class="text-red-500">*</span></label>
+                        <select class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <option>请选择</option>
+                            <option>居住空间</option>
+                            <option>公共空间</option>
+                            <option>医疗空间</option>
+                        </select>
+                    </div>
+
+                    <!-- Responsible Person -->
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-gray-600">责任人</label>
+                        <select class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <option>请选择</option>
+                            <option>张三</option>
+                            <option>李四</option>
+                        </select>
+                    </div>
+
+                    <!-- Room Height -->
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-gray-600">房间高度</label>
+                        <div class="flex">
+                            <input type="text" placeholder="请输入房间高度(米)" class="flex-1 px-3 py-2 bg-white border border-r-0 border-gray-200 rounded-l-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <span class="inline-flex items-center px-3 border border-gray-200 bg-gray-50 text-gray-500 text-sm rounded-r-lg">m</span>
+                        </div>
+                    </div>
+
+                    <!-- Area -->
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-gray-600">使用面积</label>
+                        <div class="flex">
+                            <input type="text" placeholder="请输入楼层面积 (m²)" class="flex-1 px-3 py-2 bg-white border border-r-0 border-gray-200 rounded-l-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <span class="inline-flex items-center px-3 border border-gray-200 bg-gray-50 text-gray-500 text-sm rounded-r-lg">m²</span>
+                        </div>
+                    </div>
+
+                     <!-- Bed Count -->
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-gray-600">床位数量</label>
+                        <select class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                        </select>
+                    </div>
+
+                     <!-- Usage Status -->
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-gray-600">使用状态</label>
+                        <select class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <option value="empty">空房</option>
+                            <option value="occupied">入驻</option>
+                            <option value="maintenance">维修</option>
+                            <option value="reserved">预留</option>
+                        </select>
+                    </div>
+
+                    <!-- Purpose -->
+                    <div class="md:col-span-2 space-y-1">
+                        <label class="block text-sm font-medium text-gray-600">用途</label>
+                        <textarea rows="2" class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"></textarea>
+                    </div>
+
+                    <!-- Sort -->
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-gray-600">排序</label>
+                        <div class="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+                            <input type="number" value="1" class="flex-1 px-3 py-2 text-sm focus:outline-none border-none">
+                            <div class="flex flex-col border-l border-gray-200">
+                                <button class="px-2 py-0.5 hover:bg-gray-50 border-b border-gray-200"><i data-lucide="chevron-up" class="w-3 h-3 text-gray-500"></i></button>
+                                <button class="px-2 py-0.5 hover:bg-gray-50"><i data-lucide="chevron-down" class="w-3 h-3 text-gray-500"></i></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-gray-600">状态 <span class="text-red-500">*</span></label>
+                        <select class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <option value="enable">开启</option>
+                            <option value="disable">停用</option>
+                        </select>
+                    </div>
+
+                    <!-- Room Image -->
+                    <div class="md:col-span-2 space-y-1">
+                        <label class="block text-sm font-medium text-gray-600">房间图片</label>
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center text-gray-400 hover:border-primary hover:text-primary transition-colors cursor-pointer w-40 h-40">
+                            <i data-lucide="plus" class="w-8 h-8 mb-2"></i>
+                            <span class="text-xs">上传图片</span>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">支持jpg、png格式，最大10MB，最多1个文件</p>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 border-t border-gray-200 bg-white flex justify-end space-x-3">
+                <button onclick="closeRoomModal()" class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all shadow-md">
+                    确定
+                </button>
+                <button onclick="closeRoomModal()" class="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-all shadow-sm">
+                    取消
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // Sidebar Toggle Logic
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const toggleIcon = document.getElementById('toggle-icon');
+        let isCollapsed = false;
+
+        sidebarToggle.addEventListener('click', () => {
+            isCollapsed = !isCollapsed;
+            if (isCollapsed) {
+                sidebar.classList.add('sidebar-collapsed');
+                sidebar.classList.remove('w-64');
+                sidebar.classList.add('w-20');
+            } else {
+                sidebar.classList.remove('sidebar-collapsed');
+                sidebar.classList.remove('w-20');
+                sidebar.classList.add('w-64');
+            }
+        });
+
+        // View Switching Logic
+        const views = {
+            personnel: document.getElementById('view-personnel'),
+            room: document.getElementById('view-room')
+        };
+        const navs = {
+            personnel: document.getElementById('nav-personnel'),
+            room: document.getElementById('nav-room')
+        };
+        const pageTitle = document.getElementById('page-title');
+
+        function switchView(viewName) {
+            // Hide all views
+            Object.values(views).forEach(el => el.classList.add('hidden'));
+            
+            // Reset nav styles
+            Object.values(navs).forEach(el => {
+                el.classList.remove('text-primary', 'bg-blue-50');
+                el.classList.add('text-gray-600', 'hover:bg-gray-100');
+            });
+
+            // Show selected view
+            views[viewName].classList.remove('hidden');
+            
+            // Highlight selected nav
+            const activeNav = navs[viewName];
+            activeNav.classList.remove('text-gray-600', 'hover:bg-gray-100');
+            activeNav.classList.add('text-primary', 'bg-blue-50');
+            
+            // Update Title
+            if (viewName === 'personnel') {
+                pageTitle.textContent = '康养人员列表';
+            } else if (viewName === 'room') {
+                pageTitle.textContent = '房间管理';
+            }
+            
+            // Re-init icons just in case
+            lucide.createIcons();
+        }
+
+        // ================= PERSONNEL LOGIC =================
+        const personnelModal = document.getElementById('personnel-modal');
+        function openPersonnelModal() {
+            personnelModal.classList.add('active');
+            switchTab('basic');
+            const contactList = document.getElementById('contact-list');
+            if (contactList.children.length === 0) {
+                addContactRow();
+            }
+        }
+        function closePersonnelModal() {
+            personnelModal.classList.remove('active');
+        }
+        personnelModal.addEventListener('click', (e) => {
+            if (e.target === personnelModal) closePersonnelModal();
+        });
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+            document.getElementById('content-' + tabName).classList.add('active');
+        }
+
+        function addContactRow() {
+            const list = document.getElementById('contact-list');
+            const row = document.createElement('div');
+            row.className = 'grid grid-cols-1 md:grid-cols-7 gap-3 items-end';
+            row.innerHTML = `
+                <div class="md:col-span-2 space-y-1">
+                    <label class="text-xs text-gray-500 md:hidden">姓名</label>
+                    <input type="text" placeholder="姓名" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                </div>
+                <div class="md:col-span-2 space-y-1">
+                    <label class="text-xs text-gray-500 md:hidden">关系</label>
+                    <input type="text" placeholder="关系" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                </div>
+                <div class="md:col-span-2 space-y-1">
+                    <label class="text-xs text-gray-500 md:hidden">电话</label>
+                    <input type="tel" maxlength="11" placeholder="11位电话号码" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                </div>
+                <div class="md:col-span-1">
+                    <button onclick="this.parentElement.parentElement.remove()" class="w-full md:w-auto px-3 py-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg text-sm font-medium transition-colors border border-transparent hover:border-red-200">
+                        <i data-lucide="trash-2" class="w-4 h-4 mx-auto"></i>
+                    </button>
+                </div>
+            `;
+            list.appendChild(row);
+            lucide.createIcons();
+        }
+
+        const personnelData = [
+            { id: 'P2024001', name: '张建国', gender: '男', age: 78, ethnicity: '汉族', careLevel: '二级照护', healthStatus: '一般', insuranceType: '职工医保', chronicDiseases: ['高血压', '糖尿病'], allergy: '无', createTime: '2024-03-01', status: '在院' },
+            { id: 'P2024002', name: '李秀英', gender: '女', age: 82, ethnicity: '汉族', careLevel: '一级照护', healthStatus: '较差', insuranceType: '居民医保', chronicDiseases: ['冠心病'], allergy: '青霉素', createTime: '2024-03-02', status: '在院' },
+            { id: 'P2024003', name: '王富贵', gender: '男', age: 75, ethnicity: '回族', careLevel: '三级照护', healthStatus: '良好', insuranceType: '无医保', chronicDiseases: [], allergy: '无', createTime: '2024-03-05', status: '已退房' },
+            { id: 'P2024004', name: '赵淑芬', gender: '女', age: 80, ethnicity: '汉族', careLevel: '二级照护', healthStatus: '一般', insuranceType: '职工医保', chronicDiseases: ['糖尿病'], allergy: '花粉', createTime: '2024-03-08', status: '在院' },
+            { id: 'P2024005', name: '陈大明', gender: '男', age: 69, ethnicity: '汉族', careLevel: '三级照护', healthStatus: '良好', insuranceType: '职工医保', chronicDiseases: ['高血压'], allergy: '无', createTime: '2024-03-10', status: '在院' }
+        ];
+
+        const personnelTableBody = document.getElementById('personnel-table-body');
+        function renderPersonnelTable(data) {
+            personnelTableBody.innerHTML = data.map(item => `
+                <tr class="hover:bg-blue-50/50 transition-colors group">
+                    <td class="px-6 py-4 text-gray-900 font-medium">${item.id}</td>
+                    <td class="px-6 py-4 text-gray-900">${item.name}</td>
+                    <td class="px-6 py-4 text-gray-500">${item.gender}</td>
+                    <td class="px-6 py-4 text-gray-500">${item.age}</td>
+                    <td class="px-6 py-4 text-gray-500">${item.ethnicity}</td>
+                    <td class="px-6 py-4">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            item.careLevel === '一级照护' ? 'bg-red-100 text-red-800' :
+                            item.careLevel === '二级照护' ? 'bg-orange-100 text-orange-800' :
+                            'bg-green-100 text-green-800'
+                        }">
+                            ${item.careLevel}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            item.healthStatus === '良好' ? 'bg-green-100 text-green-800' :
+                            item.healthStatus === '一般' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                        }">
+                            ${item.healthStatus}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-gray-500">${item.insuranceType}</td>
+                    <td class="px-6 py-4 text-gray-500">
+                        <div class="flex flex-wrap gap-1">
+                            ${item.chronicDiseases.length > 0 
+                                ? item.chronicDiseases.map(d => `<span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs border border-gray-200">${d}</span>`).join('') 
+                                : '<span class="text-gray-400">-</span>'}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-gray-500">${item.allergy}</td>
+                    <td class="px-6 py-4 text-gray-500 text-xs">${item.createTime}</td>
+                    <td class="px-6 py-4">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            item.status === '在院' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                        }">
+                            ${item.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="openPersonnelModal()" class="text-primary hover:text-blue-700 font-medium text-sm inline-flex items-center transition-colors">
+                            <i data-lucide="edit-2" class="w-4 h-4 mr-1"></i> 编辑
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+        }
+        renderPersonnelTable(personnelData);
+
+
+        // ================= ROOM LOGIC =================
+        const roomModal = document.getElementById('room-modal');
+        function openRoomModal() {
+            roomModal.classList.add('active');
+        }
+        function closeRoomModal() {
+            roomModal.classList.remove('active');
+        }
+        roomModal.addEventListener('click', (e) => {
+            if (e.target === roomModal) closeRoomModal();
+        });
+
+        const roomData = [
+            { code: 'R101', qr: 'QR101', name: 'VIP单人间101', sort: 1, height: 3.2, area: 45, type: '单人间', bedCount: 1, occupancyCount: 1, usageStatus: '入驻', purpose: '居住', manager: '张三' },
+            { code: 'R102', qr: 'QR102', name: '标准双人间102', sort: 2, height: 3.0, area: 60, type: '双人间', bedCount: 2, occupancyCount: 1, usageStatus: '入驻', purpose: '居住', manager: '李四' },
+            { code: 'R103', qr: 'QR103', name: '三人间103', sort: 3, height: 3.0, area: 75, type: '三人间', bedCount: 3, occupancyCount: 0, usageStatus: '空房', purpose: '居住', manager: '王五' },
+            { code: 'R104', qr: 'QR104', name: '活动室104', sort: 4, height: 3.5, area: 120, type: '公共空间', bedCount: 0, occupancyCount: 0, usageStatus: '维修', purpose: '活动', manager: '赵六' },
+            { code: 'R105', qr: 'QR105', name: '预留VIP房', sort: 5, height: 3.2, area: 50, type: '单人间', bedCount: 1, occupancyCount: 0, usageStatus: '预留', purpose: '接待', manager: '孙七' }
+        ];
+
+        const roomTableBody = document.getElementById('room-table-body');
+        function renderRoomTable(data) {
+            if (data.length === 0) {
+                roomTableBody.innerHTML = `<tr><td colspan="14" class="text-center py-8 text-gray-400">暂无数据</td></tr>`;
+                return;
+            }
+            roomTableBody.innerHTML = data.map(item => `
+                <tr class="hover:bg-blue-50/50 transition-colors group">
+                    <td class="px-4 py-3"><input type="checkbox" class="rounded border-gray-300 text-primary focus:ring-primary"></td>
+                    <td class="px-4 py-3 font-medium text-gray-900">${item.code}</td>
+                    <td class="px-4 py-3 text-gray-500 text-xs"><i data-lucide="qr-code" class="w-4 h-4 text-gray-400"></i></td>
+                    <td class="px-4 py-3 text-gray-900">${item.name}</td>
+                    <td class="px-4 py-3 text-gray-500">${item.sort}</td>
+                    <td class="px-4 py-3 text-gray-500">${item.height}m</td>
+                    <td class="px-4 py-3 text-gray-500">${item.area}m²</td>
+                    <td class="px-4 py-3 text-gray-500">${item.type}</td>
+                    <td class="px-4 py-3 text-gray-900 font-medium">${item.bedCount}</td>
+                    <td class="px-4 py-3 text-gray-900 font-medium">${item.occupancyCount}</td>
+                    <td class="px-4 py-3">
+                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            item.usageStatus === '入驻' ? 'bg-blue-100 text-blue-800' :
+                            item.usageStatus === '空房' ? 'bg-green-100 text-green-800' :
+                            item.usageStatus === '维修' ? 'bg-red-100 text-red-800' :
+                            'bg-orange-100 text-orange-800'
+                        }">
+                            ${item.usageStatus}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-gray-500">${item.purpose}</td>
+                    <td class="px-4 py-3 text-gray-500">${item.manager}</td>
+                    <td class="px-4 py-3 text-right">
+                        <button onclick="openRoomModal()" class="text-primary hover:text-blue-700 font-medium text-sm inline-flex items-center transition-colors mr-3">
+                            <i data-lucide="edit-2" class="w-4 h-4 mr-1"></i> 编辑
+                        </button>
+                         <button class="text-red-500 hover:text-red-700 font-medium text-sm inline-flex items-center transition-colors">
+                            <i data-lucide="trash-2" class="w-4 h-4 mr-1"></i> 删除
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+        }
+        renderRoomTable(roomData);
+
+    </script>
+</body>
+</html>
